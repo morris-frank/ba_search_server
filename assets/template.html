@@ -9,6 +9,7 @@
   <meta name="author" content="Maurie Frank">
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/0.8.1/cropper.min.css" integrity="sha256-HyQY2ZzTRil84YulSt2lgKEfpKumkHxgzz3Ny0FsTso=" crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.4.1/css/bulma.min.css" integrity="sha256-n+Ch7oRdzZ9+8/inp+1mK/0Bt4T/2PSmo4L6YGoDiVM=" crossorigin="anonymous" />
 
   <!--[if lt IE 9]>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.js"></script>
@@ -22,32 +23,29 @@
 </head>
 
 <body>
-  {% block content %}{% endblock %}
-  <div id="log">
-
+  <nav class="nav">
+    <div class="nav-left">
+      <div class="nav-item">
+        <h1 class="title is-5">Semantic image search</h1>
+      </div>
+    </div>
+    <div class="nav-right nav-menu">
+      <div class="nav-item">
+        <div class="field is-grouped">
+          <p class="control">
+            <a class="button is-primary" href="/setlist">To the set</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div class="container">
+    {% block content %}{% endblock %}
   </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/0.8.1/cropper.min.js" integrity="sha256-TwbS4LK+tgrH9bRI95pNnIukpG46IWrZgYkR+pEMx3o=" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-compat/3.0.0-alpha1/jquery.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
-  <script type="text/javascript" charset="utf-8">
-  jQuery.fn.sortDivs = function sortDivs() {
-    $("> div", this[0]).sort(dec_sort).appendTo(this[0]);
-    function dec_sort(a, b){ return parseFloat($(b).attr("score")) < parseFloat($(a).attr("score")) ? 1 : -1; }
-  }
-  $(document).ready(function() {
-      var socket = io.connect('http://' + document.domain + ':' + location.port);
-      socket.on('connect', function() {
-          socket.emit('my event', {data: 'I\'m connected!'});
-      });
 
-      socket.on('log', function(msg) {
-        $('#log').append('<br>' + $('<div/>').text('Received #' + msg.count + ': ' + msg.data).html());
-      });
-      socket.on('new_find', function(msg) {
-        $('#search_results').append('<div score="' + msg.score + '"><img src="' + msg.patch_path + '"/><span>' + msg.image_path + '</span></div>' );
-        $('#search_results').sortDivs();
-      });
-  });
-  </script>
+  {% block tail %}{% endblock %}
 </body>
 </html>

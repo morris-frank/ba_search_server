@@ -1,4 +1,32 @@
 {% extends 'template.html' %}
 {% block content %}
+    <nav class="pagination is-centered">
+    <a href="/setlist/{{ prev }}" class="pagination-previous">Previous</a>
+    <a href="/setlist/{{ next }}" class="pagination-next">Next page</a>
+    <ul class="pagination-list">
+        <li><a href="/setlist/0" class="pagination-link">0</a></li>
+        <li><span class="pagination-ellipsis">&hellip;</span></li>
+        <li><a href="/setlist/{{ prev }}" class="pagination-link">{{ prev }}</a></li>
+        <li><a href="/setlist/{{ page }}" class="pagination-link is-current">{{page}}</a></li>
+        <li><a href="/setlist/{{ next }}" class="pagination-link">{{ next }}</a></li>
+        <li><span class="pagination-ellipsis">&hellip;</span></li>
+        <li><a href="/setlist/{{ maxpage }}" class="pagination-link">{{ maxpage }}</a></li>
+    </ul>
+    </nav>
+
     {% include 'image_grid.html' %}
+
+    <nav class="pagination is-centered">
+        <a href="/setlist/{{ prev }}" class="pagination-previous">Previous</a>
+        <a href="/setlist/{{ next }}" class="pagination-next">Next page</a>
+        <ul class="pagination-list">
+            <li><a href="/setlist/0" class="pagination-link">0</a></li>
+            <li><span class="pagination-ellipsis">&hellip;</span></li>
+            <li><a href="/setlist/{{ prev }}" class="pagination-link">{{ prev }}</a></li>
+            <li><a href="/setlist/{{ page }}" class="pagination-link is-current">{{page}}</a></li>
+            <li><a href="/setlist/{{ next }}" class="pagination-link">{{ next }}</a></li>
+            <li><span class="pagination-ellipsis">&hellip;</span></li>
+            <li><a href="/setlist/{{ maxpage }}" class="pagination-link">{{ maxpage }}</a></li>
+        </ul>
+    </nav>
 {% endblock %}

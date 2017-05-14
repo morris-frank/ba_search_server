@@ -1,8 +1,44 @@
 {% extends 'template.html' %}
 {% block content %}
-    <span>Searching from {{ image }} with slice start ({{x1}}, {{x1}}) to end ({{x2}}, {{y2}})</span>
-
-    <div id="search_results">
-        
+    <div class="box">
+        <div class="media">
+            <figure class="media-left">
+                <img src="{{ patch_path }}" alt="The patch we search with.">
+            </figure>
+            <div class="media-content">
+                <div class="content notification is-primary">
+                    Searching from <strong>{{ image }}</strong> with slice start ({{x1}}, {{x1}}) to end ({{x2}}, {{y2}}).
+                </div>
+            </div>
+        </div>
     </div>
+    <progress class="progress is-warning" value="25" max="100"></progress>
+    <div id="search_results">
+
+    </div>
+{% endblock %}
+
+{% block tail %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+    <script type="text/javascript" charset="utf-8">
+    jQuery.fn.sortDivs = function sortDivs() {
+    $("> div", this[0]).sort(dec_sort).appendTo(this[0]);
+    function dec_sort(a, b){ return parseFloat($(b).attr("score")) > parseFloat($(a).attr("score")) ? 1 : -1; }
+    }
+    $(document).ready(function() {
+      var socket = io.connect('http://' + document.domain + ':' + location.port);
+      socket.on('connect', function() {
+          socket.emit('my event', {data: 'I\'m connected!'});
+      });
+
+      socket.on('log', function(msg) {
+        $('#log').append('<br>' + $('<div/>').text('Received #' + msg.count + ': ' + msg.data).html());
+      });
+      socket.on('new_find', function(msg) {
+        $('progress.progress').attr('value', 100)
+        $('#search_results').append('<div score="' + msg.score + '"><img src="' + msg.patch_path + '"/><span>' + msg.image_path + '</span></div>' );
+        $('#search_results').sortDivs();
+      });
+    });
+    </script>
 {% endblock %}

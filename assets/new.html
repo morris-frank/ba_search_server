@@ -1,10 +1,18 @@
 {% extends 'template.html' %}
 {% block content %}
+    <div class="box column is-half is-offset-one-quarter">
     <div id="cropper_container">
         <img style="max-width: 100%" id="cropper_target" src="{{ path }}">
     </div>
-    <p>{{ image }}</p>
-    <a id="search_button" href="/search/">Start search</a>
+    <nav class="level">
+        <div class="level-left"><div class="level-item">
+            <p class="subtitle is-5"><strong>Filename:</strong> {{ image }}</p>
+        </div></div>
+        <div class="level-right"><div class="level-item">
+            <p class="subtitle is-5"><a class="button is-success" id="search_button" href="/search/">Start search</a></p>
+        </div></div>
+    </nav>
+    </div>
 
     <script type="text/javascript">
     window.addEventListener('DOMContentLoaded', function () {

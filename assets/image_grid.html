@@ -1,7 +1,9 @@
+<div class="columns is-multiline">
 {% for img in images %}
-    <span>
-        <a href="/new/{{ img.image }}">
+    <div class="column is-one-quarter">
+        <a class="box" href="/new/{{ img.image }}">
             <img src="{{ img.path }}">
         </a>
-    </span>
+    </div>
 {% endfor %}
+</div>

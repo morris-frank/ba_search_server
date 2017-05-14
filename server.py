@@ -10,18 +10,23 @@ from flask import send_from_directory
 from flask_socketio import SocketIO
 from flask_socketio import emit
 import scipy.misc
-from sh import tail
+import tailer
+from ba import BA_ROOT
+from ba.experiment import Experiment
 
-ASSET_PATH = './assets/'
+GPU = 2
 
-# IMG_PATH = './set/'
-IMG_PATH = '/home/morris/var/hci_ba/data/datasets/voc2010/JPEGImages/'
+IMG_PATH = BA_ROOT + 'data/datasets/voc2010/JPEGImages/'
+FIND_PATH = BA_ROOT + 'current_finds.csv'
 GEN_PATH = './tmp/'
+EXPERIMENT_PATH = BA_ROOT + 'data/experiments/search.yaml'
+SEG_PATH = BA_ROOT + 'data/tmp/search_seg.yaml'
+LIST_PATH = BA_ROOT + 'data/tmp/search_list.txt'
+ASSET_PATH = './assets/'
 
 IMG_URI = '/img/'
 GEN_URI = '/gen/'
 
-FIND_PATH = '/home/morris/var/hci_ba/current_finds.csv'
 
 async_mode = 'threading'
 app = Flask(__name__,
@@ -30,6 +35,63 @@ app = Flask(__name__,
 app.config['SECRECT_KEY'] = 'BjörnKommer'
 socketio = SocketIO(app, async_mode=async_mode)
 find_poller_thread = None
+experiment_thread = None
+IMAGE_SET = None
+last_search_idx = None
+last_search_rect = None
+
+
+def write_seg_yaml(idx, rect):
+    with open(LIST_PATH, mode='w') as f:
+        f.write(idx + '\n')
+    with open(SEG_PATH, mode='w') as f:
+        prefix = '  - !!python/object/apply:builtins.slice '
+        f.write("'{}':\n".format(idx))
+        f.write("- !!python/tuple\n")
+        f.write("{}[{}, {}, null]\n".format(prefix, rect[0], rect[2]))
+        f.write("{}[{}, {}, null]\n".format(prefix, rect[1], rect[3]))
+
+
+def run_network(idx, rect):
+    global last_search_idx
+    global last_search_rect
+    last_search_idx = idx
+    last_search_rect = rect
+    write_seg_yaml(idx, rect)
+    argv = ['--gpu', str(GPU), '--train', '--test', '--tofcn',
+            EXPERIMENT_PATH, '--default', '--quiet']
+    e = Experiment(argv)
+    e.load_conf(EXPERIMENT_PATH)
+    e.conf['train_sizes'] = [1]
+    e.prepare()
+    e.train()
+    e.load_conf(EXPERIMENT_PATH[:-5] + '_FCN.yaml')
+    e.conf['train_sizes'] = [1]
+    e.prepare()
+    e.conv_test(shout=True)
+    e.clear()
+
+
+def do_search(idx, rect):
+    global find_poller_thread
+    global experiment_thread
+    global last_search_idx
+    global last_search_rect
+    if idx == last_search_idx and rect == last_search_rect:
+        return
+    if experiment_thread is not None and not experiment_thread.is_alive():
+        experiment_thread.join()
+        experiment_thread = None
+    if find_poller_thread is not None and not find_poller_thread.is_alive():
+        find_poller_thread.join()
+        find_poller_thread = None
+    if experiment_thread is None:
+        open(FIND_PATH, 'w').close()
+        experiment_thread = socketio.start_background_task(
+            target=run_network, idx=idx, rect=rect)
+        if find_poller_thread is None:
+            find_poller_thread = socketio.start_background_task(
+                target=find_poller)
 
 
 def parse_find_line(line):
@@ -50,9 +112,13 @@ def restart_finds():
 
 def find_poller():
     """Example of how to send server generated events to clients."""
-    for line in tail("-f", FIND_PATH, _iter=True):
+    global experiment_thread
+    socketio.sleep(10)
+    for line in tailer.follow(open(FIND_PATH)):
         idx, score, rect = parse_find_line(line)
         send_new_result(idx, score, rect)
+        if experiment_thread is None:
+            return True
 
 
 def gen_set_images():
@@ -78,13 +144,17 @@ def index():
 
 @app.route('/search/<path:filename>/', methods=['GET'])
 def search(filename):
+    idx = splitext(filename)[0]
     x1 = request.args.get('x1', 0)
     y1 = request.args.get('y1', 0)
     x2 = request.args.get('x2', 0)
     y2 = request.args.get('y2', 0)
+    rect = [x1, y1, x2, y2]
+    p_idx = gen_patch(idx, list(map(int, rect)))
+    do_search(idx, rect)
     return render_template(
         'search.html', image=filename, x1=x1, x2=x2, y1=y1, y2=y2,
-        async_mode=socketio.async_mode)
+        patch_path=GEN_URI + p_idx, async_mode=socketio.async_mode)
 
 
 @app.route('/new/<path:filename>')
@@ -99,17 +169,34 @@ def new(filename):
 
 @app.route('/setlist')
 def setlist():
-    images = gen_set_images()
+    return setlist_page(0)
+
+
+@app.route('/setlist/<path:page>/')
+def setlist_page(page):
+    global IMAGE_SET
+    N = len(IMAGE_SET)
+    maxpage = int(N / 20)
+    page = max(int(page), 0)
+    prev = max(page - 1, 0)
+    next = min(page + 1, maxpage)
+    subset = IMAGE_SET[min(N, page * 20):min(N, (page + 1) * 20)]
     return render_template(
-        'setlist.html', images=images, async_mode=socketio.async_mode)
+        'setlist.html', images=subset, page=page, prev=prev, next=next,
+        maxpage=maxpage, async_mode=socketio.async_mode)
+
+
+def gen_patch(idx, rect):
+    im = scipy.misc.imread(IMG_PATH + idx + '.jpg')
+    patch = im[rect[0]:rect[2], rect[1]:rect[3], :]
+    p_idx = '{}_{}_{}_{}_{}.png'.format(
+        splitext(idx)[0], rect[0], rect[1], rect[2], rect[3])
+    scipy.misc.imsave(GEN_PATH + p_idx, patch)
+    return p_idx
 
 
 def send_new_result(bn, score, rect):
-    im = scipy.misc.imread(IMG_PATH + bn + '.jpg')
-    patch = im[rect[0]:rect[2], rect[1]:rect[3], :]
-    p_bn = '{}_{}_{}_{}_{}.png'.format(
-        splitext(bn)[0], rect[0], rect[1], rect[2], rect[3])
-    scipy.misc.imsave(GEN_PATH + p_bn, patch)
+    p_bn = gen_patch(bn, rect)
     socketio.emit(
         'new_find', {'score': score, 'image_path': IMG_URI + bn,
                      'patch_path': GEN_URI + p_bn})
@@ -117,13 +204,11 @@ def send_new_result(bn, score, rect):
 
 @socketio.on('connect')
 def test_connect():
-    global find_poller_thread
     restart_finds()
-    if find_poller_thread is None:
-        find_poller_thread = socketio.start_background_task(target=find_poller)
     emit('log', {'data': 'Connected', 'count': 0})
 
 
 if __name__ == '__main__':
+    IMAGE_SET = gen_set_images()
     socketio.run(app)
     # app.run(debug=True)
