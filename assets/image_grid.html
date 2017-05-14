@@ -1,0 +1,7 @@
+{% for img in images %}
+    <span>
+        <a href="/new/{{ img.image }}">
+            <img src="{{ img.path }}">
+        </a>
+    </span>
+{% endfor %}

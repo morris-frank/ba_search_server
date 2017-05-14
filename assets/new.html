@@ -1,0 +1,38 @@
+{% extends 'template.html' %}
+{% block content %}
+    <div id="cropper_container">
+        <img style="max-width: 100%" id="cropper_target" src="{{ path }}">
+    </div>
+    <p>{{ image }}</p>
+    <a id="search_button" href="/search/">Start search</a>
+
+    <script type="text/javascript">
+    window.addEventListener('DOMContentLoaded', function () {
+      var image = document.querySelector('#cropper_target');
+      var cropper = new Cropper(image, {
+        viewMode: 3,
+        dragMode: 'crop',
+        autoCropArea: 0.5,
+        restore: false,
+        modal: false,
+        guides: false,
+        highlight: false,
+        cropBoxMovable: false,
+        cropBoxResizable: false,
+        toggleDragModeOnDblclick: false,
+        minContainerWidth: {{width}},
+        minContainerHeight: {{height}},
+        minCanvasWidth: {{width}},
+        minCanvasHeight: {{height}},
+        crop: function(e) {
+            x1 = 'x1=' + Math.floor(e.detail.x)
+            y1 = 'y1=' + Math.floor(e.detail.y)
+            x2 = 'x2=' + Math.floor(e.detail.x + e.detail.width)
+            y2 = 'y2=' + Math.floor(e.detail.y + e.detail.height)
+            p = x1 + '&' + y1 + '&' + x2 + '&' + y2
+            $('#search_button').attr('href', '/search/{{ image }}/?' + p)
+        }
+      });
+    });
+    </script>
+{% endblock %}
