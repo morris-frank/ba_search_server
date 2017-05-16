@@ -16,7 +16,27 @@ from ba.experiment import Experiment
 
 GPU = 2
 
-IMG_PATH = BA_ROOT + 'data/datasets/voc2010/JPEGImages/'
+#########################
+# Config VOC
+# IMG_PATH = BA_ROOT + 'data/datasets/voc2010/JPEGImages/'
+# MEAN = BA_ROOT + 'data/models/resnet/ResNet_mean.npy'
+# NEGATIVES = BA_ROOT + 'data/tmp/var_neg/'
+# TEST = BA_ROOT + 'data/tmp/pascpart/pascpart.txt'
+# TEST_IMAGES = BA_ROOT + 'data/tmp/mean_substracted_voc/'
+# TEST_MEAN = False
+#########################
+
+ART_ROOT = '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images'
+#########################
+# Config art1
+IMG_PATH = ART_ROOT + 'imageFiles_1/'
+MEAN = False
+NEGATIVES = ART_ROOT + 'imageFiles_1_patches/'
+TEST = ART_ROOT + 'imageFiles_1.txt'
+TEST_IMAGES = IMG_PATH
+TEST_MEAN = False
+#########################
+
 FIND_PATH = BA_ROOT + 'current_finds.csv'
 GEN_PATH = './tmp/'
 EXPERIMENT_PATH = BA_ROOT + 'data/experiments/search.yaml'
@@ -62,10 +82,17 @@ def run_network(idx, rect):
             EXPERIMENT_PATH, '--default', '--quiet']
     e = Experiment(argv)
     e.load_conf(EXPERIMENT_PATH)
+    e.conf['images'] = IMG_PATH
+    e.conf['mean'] = MEAN
+    e.conf['negatives'] = NEGATIVES
     e.conf['train_sizes'] = [1]
     e.prepare()
     e.train()
     e.load_conf(EXPERIMENT_PATH[:-5] + '_FCN.yaml')
+    e.conf['images'] = IMG_PATH
+    e.conf['mean'] = TEST_MEAN
+    e.conf['test_images'] = TEST_IMAGES
+    e.conf['test'] = TEST
     e.conf['train_sizes'] = [1]
     e.prepare()
     e.conv_test(shout=True)
@@ -199,7 +226,7 @@ def send_new_result(bn, score, rect):
     p_bn = gen_patch(bn, rect)
     socketio.emit(
         'new_find', {'score': score, 'image_path': IMG_URI + bn,
-                     'patch_path': GEN_URI + p_bn})
+                     'patch_path': GEN_URI + p_bn, 'image_bn': bn})
 
 
 @socketio.on('connect')

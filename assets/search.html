@@ -13,7 +13,8 @@
         </div>
     </div>
     <progress class="progress is-warning" value="25" max="100"></progress>
-    <div id="search_results">
+
+    <div id="search_results" class="columns is-multiline">
 
     </div>
 {% endblock %}
@@ -36,7 +37,13 @@
       });
       socket.on('new_find', function(msg) {
         $('progress.progress').attr('value', 100)
-        $('#search_results').append('<div score="' + msg.score + '"><img src="' + msg.patch_path + '"/><span>' + msg.image_path + '</span></div>' );
+        find_str = '<div class="card column is-one-quarter" score="' + msg.score + '">' +
+            '<div class="card-image"><img src="' + msg.patch_path + '"></div>' +
+            '<footer class="card-footer">' +
+                '<p class="card-footer-item"><a href="/new/' + msg.image_path + '">' + msg.image_bn + '</a></p>' +
+                '<p class="card-footer-item"><strong>S: </strong>' + Math.round(msg.score * 100).toFixed(2) + '%</p>' +
+            '</footer></div>';
+        $('#search_results').append(find_str);
         $('#search_results').sortDivs();
       });
     });
