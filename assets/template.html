@@ -15,8 +15,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.js"></script>
   <![endif]-->
   <style media="screen">
-    #cropper_container {
-        max-width: 600px;
+    .search-anchor-image {
+      max-width: 250px;
+      max-height: 250px;
+    }
+    .search-result-image {
+      display: block;
+      margin: 0 auto;
+      max-width: 125px;
+      max-height: 125px;
+    }
+
+    .search-result-link {
+      display: block;
     }
   </style>
 
@@ -43,8 +54,10 @@
     {% block content %}{% endblock %}
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/0.8.1/cropper.min.js" integrity="sha256-TwbS4LK+tgrH9bRI95pNnIukpG46IWrZgYkR+pEMx3o=" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-compat/3.0.0-alpha1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.8.0/jquery.modal.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/0.8.1/cropper.min.js" integrity="sha256-TwbS4LK+tgrH9bRI95pNnIukpG46IWrZgYkR+pEMx3o=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stackblur-canvas/1.4.0/stackblur.min.js"></script>
 
   {% block tail %}{% endblock %}
 </body>

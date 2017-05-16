@@ -13,6 +13,8 @@ import scipy.misc
 import tailer
 from ba import BA_ROOT
 from ba.experiment import Experiment
+import ba.utils
+from scipy.ndimage.filters import gaussian_filter
 
 GPU = 2
 
@@ -26,15 +28,24 @@ GPU = 2
 # TEST_MEAN = False
 #########################
 
-ART_ROOT = '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images'
+ART_ROOT = '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images/'
 #########################
-# Config art1
+# # Config art1
 IMG_PATH = ART_ROOT + 'imageFiles_1/'
 MEAN = False
 NEGATIVES = ART_ROOT + 'imageFiles_1_patches/'
 TEST = ART_ROOT + 'imageFiles_1.txt'
 TEST_IMAGES = IMG_PATH
 TEST_MEAN = False
+#########################
+#########################
+# Config art8
+# IMG_PATH = ART_ROOT + 'imageFiles_8/'
+# MEAN = False
+# NEGATIVES = ART_ROOT + 'imageFiles_8_patches/'
+# TEST = ART_ROOT + 'imageFiles_8.txt'
+# TEST_IMAGES = IMG_PATH
+# TEST_MEAN = False
 #########################
 
 FIND_PATH = BA_ROOT + 'current_finds.csv'
@@ -59,6 +70,7 @@ experiment_thread = None
 IMAGE_SET = None
 last_search_idx = None
 last_search_rect = None
+set_extension = None
 
 
 def write_seg_yaml(idx, rect):
@@ -75,19 +87,20 @@ def write_seg_yaml(idx, rect):
 def run_network(idx, rect):
     global last_search_idx
     global last_search_rect
+    global find_poller_thread
     last_search_idx = idx
     last_search_rect = rect
     write_seg_yaml(idx, rect)
     argv = ['--gpu', str(GPU), '--train', '--test', '--tofcn',
             EXPERIMENT_PATH, '--default', '--quiet']
     e = Experiment(argv)
-    e.load_conf(EXPERIMENT_PATH)
-    e.conf['images'] = IMG_PATH
-    e.conf['mean'] = MEAN
-    e.conf['negatives'] = NEGATIVES
-    e.conf['train_sizes'] = [1]
-    e.prepare()
-    e.train()
+    # e.load_conf(EXPERIMENT_PATH)
+    # e.conf['images'] = IMG_PATH
+    # e.conf['mean'] = MEAN
+    # e.conf['negatives'] = NEGATIVES
+    # e.conf['train_sizes'] = [1]
+    # e.prepare()
+    # e.train()
     e.load_conf(EXPERIMENT_PATH[:-5] + '_FCN.yaml')
     e.conf['images'] = IMG_PATH
     e.conf['mean'] = TEST_MEAN
@@ -95,7 +108,10 @@ def run_network(idx, rect):
     e.conf['test'] = TEST
     e.conf['train_sizes'] = [1]
     e.prepare()
-    e.conv_test(shout=True)
+    e.conv_test(shout=True, doEval=False)
+    if find_poller_thread is None:
+        find_poller_thread = socketio.start_background_task(
+            target=find_poller)
     e.clear()
 
 
@@ -105,6 +121,9 @@ def do_search(idx, rect):
     global last_search_idx
     global last_search_rect
     if idx == last_search_idx and rect == last_search_rect:
+        if find_poller_thread is None:
+            find_poller_thread = socketio.start_background_task(
+                target=find_poller)
         return
     if experiment_thread is not None and not experiment_thread.is_alive():
         experiment_thread.join()
@@ -116,9 +135,6 @@ def do_search(idx, rect):
         open(FIND_PATH, 'w').close()
         experiment_thread = socketio.start_background_task(
             target=run_network, idx=idx, rect=rect)
-        if find_poller_thread is None:
-            find_poller_thread = socketio.start_background_task(
-                target=find_poller)
 
 
 def parse_find_line(line):
@@ -149,7 +165,10 @@ def find_poller():
 
 
 def gen_set_images():
-    image_paths = glob.glob(IMG_PATH + '*jpg')
+    global set_extension
+    if set_extension is None:
+        set_extension = ba.utils.prevalent_extension(IMG_PATH)
+    image_paths = glob.glob(IMG_PATH + '*' + set_extension)
     return [{'path': IMG_URI + basename(i), 'image': basename(i)}
             for i in image_paths]
 
@@ -214,18 +233,26 @@ def setlist_page(page):
 
 
 def gen_patch(idx, rect):
-    im = scipy.misc.imread(IMG_PATH + idx + '.jpg')
+    global set_extension
+    im = scipy.misc.imread(IMG_PATH + idx + '.' + set_extension)
     patch = im[rect[0]:rect[2], rect[1]:rect[3], :]
-    p_idx = '{}_{}_{}_{}_{}.png'.format(
+    if im.ndim == 3:
+        blurred_patch = gaussian_filter(im, (2, 2, 0))
+    else:
+        blurred_patch = gaussian_filter(im, (2, 2))
+    blurred_patch[rect[0]:rect[2], rect[1]:rect[3], :] = patch
+    p_idx = '{}_{}_{}_{}_{}'.format(
         splitext(idx)[0], rect[0], rect[1], rect[2], rect[3])
-    scipy.misc.imsave(GEN_PATH + p_idx, patch)
-    return p_idx
+    scipy.misc.imsave(GEN_PATH + p_idx + '.png', patch)
+    scipy.misc.imsave(GEN_PATH + p_idx + '_blurred.png', blurred_patch)
+    return p_idx + '.png'
 
 
 def send_new_result(bn, score, rect):
     p_bn = gen_patch(bn, rect)
     socketio.emit(
-        'new_find', {'score': score, 'image_path': IMG_URI + bn,
+        'new_find', {'score': score,
+                     'image_path': IMG_URI + bn + '.' + set_extension,
                      'patch_path': GEN_URI + p_bn, 'image_bn': bn})
 
 

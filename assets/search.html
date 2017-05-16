@@ -3,7 +3,7 @@
     <div class="box">
         <div class="media">
             <figure class="media-left">
-                <img src="{{ patch_path }}" alt="The patch we search with.">
+                <img class="search-anchor-image" src="{{ patch_path }}" alt="The patch we search with.">
             </figure>
             <div class="media-content">
                 <div class="content notification is-primary">
@@ -17,34 +17,52 @@
     <div id="search_results" class="columns is-multiline">
 
     </div>
+
+    <div id="overlay_modal" class="modal">
+        <div class="modal-background"></div>
+        <div class="modal-content">
+            {# <img id="modal-background-image" src="" />#}
+            <img id="modal-patch-image" src="" />
+        </div>
+    </div>
 {% endblock %}
 
 {% block tail %}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
     <script type="text/javascript" charset="utf-8">
     jQuery.fn.sortDivs = function sortDivs() {
-    $("> div", this[0]).sort(dec_sort).appendTo(this[0]);
-    function dec_sort(a, b){ return parseFloat($(b).attr("score")) > parseFloat($(a).attr("score")) ? 1 : -1; }
+        $("> div", this[0]).sort(dec_sort).appendTo(this[0]);
+        function dec_sort(a, b){ return parseFloat($(b).attr("score")) > parseFloat($(a).attr("score")) ? 1 : -1; }
     }
+
     $(document).ready(function() {
       var socket = io.connect('http://' + document.domain + ':' + location.port);
       socket.on('connect', function() {
           socket.emit('my event', {data: 'I\'m connected!'});
       });
 
-      socket.on('log', function(msg) {
-        $('#log').append('<br>' + $('<div/>').text('Received #' + msg.count + ': ' + msg.data).html());
-      });
+      var results = [];
+
       socket.on('new_find', function(msg) {
         $('progress.progress').attr('value', 100)
+        if (results.indexOf(msg.patch_path) != -1){ return }
+        results.push(msg.patch_path);
         find_str = '<div class="card column is-one-quarter" score="' + msg.score + '">' +
-            '<div class="card-image"><img src="' + msg.patch_path + '"></div>' +
+            '<div class="card-image">' +
+                '<a class="search-result-link" href="#overlay_modal" rel="modal:open" ppath="' + msg.patch_path + '" impath="' + msg.image_path + '">' +
+                    '<img class="search-result-image" src="' + msg.patch_path + '"></a></div>' +
             '<footer class="card-footer">' +
                 '<p class="card-footer-item"><a href="/new/' + msg.image_path + '">' + msg.image_bn + '</a></p>' +
-                '<p class="card-footer-item"><strong>S: </strong>' + Math.round(msg.score * 100).toFixed(2) + '%</p>' +
+                '<p class="card-footer-item"><strong>S: </strong>' + (msg.score * 100).toFixed(2) + '%</p>' +
             '</footer></div>';
         $('#search_results').append(find_str);
         $('#search_results').sortDivs();
+
+        $('.search-result-link').click(function() {
+            $('#overlay_modal').addClass('is-active')
+            var ppath =  $(this).attr('ppath');
+            $('#modal-patch-image').attr('src', ppath.split('.')[0] + '_blurred.png');
+        });
       });
     });
     </script>
