@@ -1,3 +1,7 @@
+timings.csv
 tmp/
 venv/
 set/
+data/
+gen/
+*~

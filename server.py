@@ -20,32 +20,32 @@ GPU = 2
 
 #########################
 # Config VOC
-# IMG_PATH = BA_ROOT + 'data/datasets/voc2010/JPEGImages/'
-# MEAN = BA_ROOT + 'data/models/resnet/ResNet_mean.npy'
-# NEGATIVES = BA_ROOT + 'data/tmp/var_neg/'
-# TEST = BA_ROOT + 'data/tmp/pascpart/pascpart.txt'
-# TEST_IMAGES = BA_ROOT + 'data/tmp/mean_substracted_voc/'
-# TEST_MEAN = False
+#IMG_PATH = BA_ROOT + 'data/datasets/voc2010/JPEGImages/'
+#MEAN = BA_ROOT + 'data/models/resnet/ResNet_mean.npy'
+#NEGATIVES = BA_ROOT + 'data/tmp/var_neg/'
+#TEST = BA_ROOT + 'data/tmp/pascpart/pascpart.txt'
+#TEST_IMAGES = BA_ROOT + 'data/tmp/mean_substracted_voc/'
+#TEST_MEAN = False
 #########################
 
 ART_ROOT = '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images/'
 #########################
-# # Config art1
-IMG_PATH = ART_ROOT + 'imageFiles_1/'
-MEAN = False
-NEGATIVES = ART_ROOT + 'imageFiles_1_patches/'
-TEST = ART_ROOT + 'imageFiles_1.txt'
-TEST_IMAGES = IMG_PATH
-TEST_MEAN = False
+# Config art1
+#IMG_PATH = ART_ROOT + 'imageFiles_1/'
+#MEAN = False
+#NEGATIVES = ART_ROOT + 'imageFiles_1_patches/'
+#TEST = ART_ROOT + 'imageFiles_1.txt'
+#TEST_IMAGES = IMG_PATH
+#TEST_MEAN = False
 #########################
 #########################
 # Config art8
-# IMG_PATH = ART_ROOT + 'imageFiles_8/'
-# MEAN = False
-# NEGATIVES = ART_ROOT + 'imageFiles_8_patches/'
-# TEST = ART_ROOT + 'imageFiles_8.txt'
-# TEST_IMAGES = IMG_PATH
-# TEST_MEAN = False
+IMG_PATH = ART_ROOT + 'imageFiles_8/'
+MEAN = False
+NEGATIVES = ART_ROOT + 'imageFiles_8_patches/'
+TEST = ART_ROOT + 'imageFiles_8.txt'
+TEST_IMAGES = IMG_PATH
+TEST_MEAN = False
 #########################
 
 FIND_PATH = BA_ROOT + 'current_finds.csv'
@@ -94,13 +94,13 @@ def run_network(idx, rect):
     argv = ['--gpu', str(GPU), '--train', '--test', '--tofcn',
             EXPERIMENT_PATH, '--default', '--quiet']
     e = Experiment(argv)
-    # e.load_conf(EXPERIMENT_PATH)
-    # e.conf['images'] = IMG_PATH
-    # e.conf['mean'] = MEAN
-    # e.conf['negatives'] = NEGATIVES
-    # e.conf['train_sizes'] = [1]
-    # e.prepare()
-    # e.train()
+    e.load_conf(EXPERIMENT_PATH)
+    e.conf['images'] = IMG_PATH
+    e.conf['mean'] = MEAN
+    e.conf['negatives'] = NEGATIVES
+    e.conf['train_sizes'] = [1]
+    e.prepare()
+    e.train()
     e.load_conf(EXPERIMENT_PATH[:-5] + '_FCN.yaml')
     e.conf['images'] = IMG_PATH
     e.conf['mean'] = TEST_MEAN
@@ -108,10 +108,10 @@ def run_network(idx, rect):
     e.conf['test'] = TEST
     e.conf['train_sizes'] = [1]
     e.prepare()
-    e.conv_test(shout=True, doEval=False)
     if find_poller_thread is None:
         find_poller_thread = socketio.start_background_task(
             target=find_poller)
+    e.conv_test(shout=True, doEval=False)
     e.clear()
 
 
@@ -235,16 +235,18 @@ def setlist_page(page):
 def gen_patch(idx, rect):
     global set_extension
     im = scipy.misc.imread(IMG_PATH + idx + '.' + set_extension)
-    patch = im[rect[0]:rect[2], rect[1]:rect[3], :]
     if im.ndim == 3:
-        blurred_patch = gaussian_filter(im, (2, 2, 0))
+        patch = im[rect[0]:rect[2], rect[1]:rect[3], :]
+        blurred_image = gaussian_filter(im, (2, 2, 0))
+        blurred_image[rect[0]:rect[2], rect[1]:rect[3], :] = patch
     else:
-        blurred_patch = gaussian_filter(im, (2, 2))
-    blurred_patch[rect[0]:rect[2], rect[1]:rect[3], :] = patch
+        patch = im[rect[0]:rect[2], rect[1]:rect[3]]
+        blurred_image = gaussian_filter(im, (2, 2))
+        blurred_image[rect[0]:rect[2], rect[1]:rect[3]] = patch
     p_idx = '{}_{}_{}_{}_{}'.format(
         splitext(idx)[0], rect[0], rect[1], rect[2], rect[3])
     scipy.misc.imsave(GEN_PATH + p_idx + '.png', patch)
-    scipy.misc.imsave(GEN_PATH + p_idx + '_blurred.png', blurred_patch)
+    scipy.misc.imsave(GEN_PATH + p_idx + '_blurred.png', blurred_image)
     return p_idx + '.png'
 
 
