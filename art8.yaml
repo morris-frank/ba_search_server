@@ -1,0 +1,6 @@
+images: '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images/imageFiles_8/'
+mean: False
+negatives: '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images/imageFiles_8_patches/'
+test_images: '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images/imageFiles_8/'
+test_mean: False
+test: '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images/imageFiles_8.txt'
