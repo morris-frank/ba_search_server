@@ -174,6 +174,10 @@ def write_seg_yaml(idx, rect):
         f.write("{}[{}, {}, null]\n".format(prefix, rect[1], rect[3]))
 
 
+def precompute_features():
+    pass
+
+
 def run_network(idx, rect):
     sconf.last_img = idx
     sconf.last_rect = rect
