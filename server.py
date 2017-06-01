@@ -16,8 +16,6 @@ from ba.experiment import Experiment
 import ba.utils
 from scipy.ndimage.filters import gaussian_filter
 
-GPU = 1
-
 
 class ServerConfig(object):
     def __init__(self):
@@ -46,6 +44,9 @@ class ServerConfig(object):
         self.uri_img = '/img/'
         self.uri_tmp = '/gen/'
 
+        self.n_gpu = int(os.popen('lspci | grep GeForce | wc -l').read()[:-1])
+        self.GPU = 0
+
 
 sconf = ServerConfig()
 async_mode = 'threading'
@@ -58,17 +59,26 @@ socketio = SocketIO(app, async_mode=async_mode)
 
 # DEFINE VIEWS
 ##############
-@app.route('/')
+@app.route('/', methods=['GET'])
 def index():
+    sconf.GPU = int(request.args.get('gpu', sconf.GPU))
     config_files = glob.glob('./*yaml')
     basenames = [splitext(basename(fp))[0] for fp in config_files]
     return render_template('sets.html', basenames=basenames,
-                           async_mode=socketio.async_mode)
+                           async_mode=socketio.async_mode, ngpu=sconf.n_gpu,
+                           gpu=sconf.GPU)
 
 
 @app.route('/choose_set/<path:setfile>/')
 def choose_set(setfile):
     choose_set_config('./' + basename(setfile) + '.yaml')
+    return redirect('/setlist')
+
+
+@app.route('/precompute/<path:setfile>')
+def precompute(setfile):
+    choose_set_config('./' + basename(setfile) + '.yaml')
+    precompute_features()
     return redirect('/setlist')
 
 
@@ -105,7 +115,8 @@ def setlist_page(page):
     subset = sconf.set[min(N, page * 20):min(N, (page + 1) * 20)]
     return render_template(
         'setlist.html', images=subset, page=page, prev=prev, next=next,
-        maxpage=maxpage, async_mode=socketio.async_mode)
+        maxpage=maxpage, async_mode=socketio.async_mode, ngpu=sconf.n_gpu,
+        gpu=sconf.GPU)
 
 
 @app.route('/search/<path:filename>/', methods=['GET'])
@@ -122,7 +133,8 @@ def search(filename):
     do_search(idx, rect)
     return render_template(
         'search.html', image=filename, x1=x1, x2=x2, y1=y1, y2=y2,
-        patch_path=sconf.uri_tmp + p_idx, async_mode=socketio.async_mode)
+        patch_path=sconf.uri_tmp + p_idx, async_mode=socketio.async_mode,
+        ngpu=sconf.n_gpu, gpu=sconf.GPU)
 
 
 @app.route('/new/<path:filename>')
@@ -134,7 +146,7 @@ def new(filename):
     width, height = im.shape[:2]
     return render_template(
         'new.html', image=filename, path=path, width=width, height=height,
-        async_mode=socketio.async_mode)
+        async_mode=socketio.async_mode, ngpu=sconf.n_gpu, gpu=sconf.GPU)
 # END DEFINE VIEWS
 ##################
 
@@ -175,15 +187,24 @@ def write_seg_yaml(idx, rect):
 
 
 def precompute_features():
-    pass
+    argv = ['--gpu', str(sconf.GPU), sconf.f_expYAML, '--default', '--quiet']
+    e = Experiment(argv)
+    e.load_conf(sconf.f_expYAML)
+    e.conf['images'] = sconf.images
+    e.conf['mean'] = sconf.mean
+    e.conf['negatives'] = sconf.negatives
+    e.conf['train_sizes'] = [1]
+    e.prepare()
 
+
+def run_train(idx, rect):
+    pass
 
 def run_network(idx, rect):
     sconf.last_img = idx
     sconf.last_rect = rect
     write_seg_yaml(idx, rect)
-    argv = ['--gpu', str(GPU), '--train', '--test', '--tofcn',
-            sconf.f_expYAML, '--default', '--quiet']
+    argv = ['--gpu', str(sconf.GPU), sconf.f_expYAML, '--default', '--quiet']
     e = Experiment(argv)
     e.load_conf(sconf.f_expYAML)
     e.conf['images'] = sconf.images

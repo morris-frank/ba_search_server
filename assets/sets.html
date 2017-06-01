@@ -3,9 +3,14 @@
     <div class="columns is-multiline">
     {% for bn in basenames %}
         <div class="column is-one-quarter">
-            <a class="box" href="/choose_set/{{ bn }}">
-                {{ bn }}
-            </a>
+            <div class="card-image">
+                <img class="search-result-image" src="#">
+            </div>
+            <footer class="card-footer">
+                <p class="card-footer-item"><strong>{{bn}}</strong></p>
+                <p class="card-footer-item"><a href="/choose_set/{{ bn }}">Change to</a></p>
+                <p class="card-footer-item"><a href="/precompute/{{ bn }}">Precompute</a></p>
+            </footer>
         </div>
     {% endfor %}
     </div>
