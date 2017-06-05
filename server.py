@@ -12,6 +12,7 @@ from flask_socketio import SocketIO
 import scipy.misc
 import tailer
 from ba import BA_ROOT
+import ba
 from ba.experiment import Experiment
 import ba.utils
 from scipy.ndimage.filters import gaussian_filter
@@ -21,6 +22,7 @@ class ServerConfig(object):
     def __init__(self):
         self.poll_thread = None
         self.nn_thread = None
+        self.pre_thread = None
         self.set = None
         self.last_img = None
         self.last_rect = None
@@ -44,7 +46,8 @@ class ServerConfig(object):
         self.uri_img = '/img/'
         self.uri_tmp = '/gen/'
 
-        self.n_gpu = int(os.popen('lspci | grep GeForce | wc -l').read()[:-1])
+        self.n_gpu = int(os.popen(
+            'lspci | grep VGA | grep \'rev a1\' | wc -l').read()[:-1])
         self.GPU = 0
 
 
@@ -61,10 +64,17 @@ socketio = SocketIO(app, async_mode=async_mode)
 ##############
 @app.route('/', methods=['GET'])
 def index():
-    sconf.GPU = int(request.args.get('gpu', sconf.GPU))
+    if 'gpu' in request.args:
+        sconf.GPU = int(request.args.get('gpu', sconf.GPU))
+        return redirect('/')
     config_files = glob.glob('./*yaml')
-    basenames = [splitext(basename(fp))[0] for fp in config_files]
-    return render_template('sets.html', basenames=basenames,
+    configs = []
+    for i, config_file in enumerate(config_files):
+        c = ba.utils.load(config_file)
+        bn = splitext(basename(config_file))[0]
+        pre = os.path.exists(os.path.splitext(c['test'])[0] + '_lmdb/data.mdb')
+        configs.append({'name': bn, 'precomputed': pre})
+    return render_template('sets.html', configs=configs,
                            async_mode=socketio.async_mode, ngpu=sconf.n_gpu,
                            gpu=sconf.GPU)
 
@@ -78,7 +88,12 @@ def choose_set(setfile):
 @app.route('/precompute/<path:setfile>')
 def precompute(setfile):
     choose_set_config('./' + basename(setfile) + '.yaml')
-    precompute_features()
+    if sconf.pre_thread is not None and not sconf.pre_thread.is_alive():
+        sconf.pre_thread.join()
+        sconf.pre_thread = None
+    if sconf.pre_thread is None:
+            sconf.pre_thread = socketio.start_background_task(
+                target=precompute_features)
     return redirect('/setlist')
 
 
@@ -155,7 +170,6 @@ def new(filename):
 ##############
 def choose_set_config(filepath):
     config = ba.utils.load(filepath)
-    print(config)
     sconf.set_config = filepath
     sconf.images = config['images']
     sconf.mean = config['mean']
@@ -187,43 +201,56 @@ def write_seg_yaml(idx, rect):
 
 
 def precompute_features():
-    argv = ['--gpu', str(sconf.GPU), sconf.f_expYAML, '--default', '--quiet']
-    e = Experiment(argv)
-    e.load_conf(sconf.f_expYAML)
+    e = Experiment(['--gpu', str(sconf.GPU), '--default', '--quiet'])
+    e.load_conf(sconf.f_expYAML[:-5] + '_precompute.yaml')
     e.conf['images'] = sconf.images
     e.conf['mean'] = sconf.mean
     e.conf['negatives'] = sconf.negatives
-    e.conf['train_sizes'] = [1]
+    e.conf['test'] = sconf.test
     e.prepare()
+    e.cnn.net_weights = e.conf['weights']
+    e.cnn.testset.add_pre_suffix(sconf.images, '.' + sconf.set_ext)
+    e.cnn.outputs_to_lmdb()
+    e.cnn.testset.rm_pre_suffix(sconf.images, '.' + sconf.set_ext)
 
 
 def run_train(idx, rect):
     pass
 
+
+def run_test():
+    e = Experiment(['--gpu', str(sconf.GPU), '--default', '--quiet', '--tofcn'])
+    e.load_conf(sconf.f_expYAML[:-5] + '_FCN.yaml')
+    e.conf['lmdb'] = os.path.splitext(sconf.test)[0] + '_lmdb'
+    e.conf['images'] = sconf.images
+    e.conf['test_images'] = sconf.test_images
+    e.conf['test'] = sconf.test
+    e.prepare()
+    e.conv_test(shout=True, doEval=False)
+
+
 def run_network(idx, rect):
     sconf.last_img = idx
     sconf.last_rect = rect
     write_seg_yaml(idx, rect)
-    argv = ['--gpu', str(sconf.GPU), sconf.f_expYAML, '--default', '--quiet']
-    e = Experiment(argv)
-    e.load_conf(sconf.f_expYAML)
-    e.conf['images'] = sconf.images
-    e.conf['mean'] = sconf.mean
-    e.conf['negatives'] = sconf.negatives
-    e.conf['train_sizes'] = [1]
-    e.prepare()
-    e.train()
-    e.load_conf(sconf.f_expYAML[:-5] + '_FCN.yaml')
-    e.conf['images'] = sconf.images
-    e.conf['mean'] = sconf.test_mean
-    e.conf['test_images'] = sconf.test_images
-    e.conf['test'] = sconf.test
-    e.conf['train_sizes'] = [1]
-    e.prepare()
-    if sconf.poll_thread is None:
-        sconf.poll_thread = socketio.start_background_task(
-            target=find_poller)
-    e.conv_test(shout=True, doEval=False)
+    e = Experiment(['--gpu', str(sconf.GPU), '--default', '--quiet'])
+    # e.load_conf(sconf.f_expYAML)
+    # e.conf['mean'] = sconf.mean
+    # e.conf['negatives'] = sconf.negatives
+    # e.conf['images'] = sconf.images
+    # e.prepare()
+    # e.train()
+    run_test()
+    # e.load_conf(sconf.f_expYAML[:-5] + '_FCN.yaml')
+    # e.conf['images'] = sconf.images
+    # e.conf['mean'] = sconf.test_mean
+    # e.conf['test_images'] = sconf.test_images
+    # e.conf['test'] = sconf.test
+    # e.prepare()
+    # if sconf.poll_thread is None:
+    #     sconf.poll_thread = socketio.start_background_task(
+    #         target=find_poller)
+    # e.conv_test(shout=True, doEval=False)
     e.clear()
 
 
@@ -269,6 +296,10 @@ def parse_find_line(line):
     rect = rect_str[1:-1].split()
     rect = list(map(int, rect))
     return idx, score, rect
+
+
+def send_notification(message):
+    socketio.emit('message', {'text': message})
 
 
 def send_new_result(bn, score, rect):

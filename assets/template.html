@@ -43,6 +43,7 @@
     <div class="nav-right nav-menu">
       <div class="nav-item">
         <div class="field is-grouped">
+          <label class="label">Choose GPU:</label>
           {% for gpu_id in range(ngpu) %}
             {% if gpu_id == gpu %}
               <p class="control"><a class="button is-success" href="/?gpu={{gpu_id}}">{{gpu_id}}</a></p>
@@ -56,6 +57,8 @@
       </div>
     </div>
   </nav>
+  <div id="notification-center">
+  </div>
   <div class="container">
     {% block content %}{% endblock %}
   </div>
@@ -64,6 +67,18 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.8.0/jquery.modal.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/0.8.1/cropper.min.js" integrity="sha256-TwbS4LK+tgrH9bRI95pNnIukpG46IWrZgYkR+pEMx3o=" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stackblur-canvas/1.4.0/stackblur.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+
+  <script type="text/javascript" charset="utf-8">
+    var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+    $(document).ready(function() {
+      socket.on('message', function(msg) {
+        m_str = '<div class="notification is-info">' + msg.text + '</div>';
+        $('#notification-center').append(m_str);
+      });
+    });
+  </script>
 
   {% block tail %}{% endblock %}
 </body>
