@@ -1,6 +1,6 @@
 images: '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images/imageFiles_1/'
 mean: False
 negatives: '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images/imageFiles_1_patches/'
-test_images: '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images/imageFiles_1/'
+test_images: '/net/hciserver03/storage/mfrank/src/ba/data/tmp/mean_substracted_voc/'
 test_mean: False
 test: '/net/hci-storage01/groupfolders/compvis/mfrank/arthistoric_images/imageFiles_1.txt'

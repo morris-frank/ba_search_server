@@ -57,7 +57,7 @@ app = Flask(__name__,
             template_folder=sconf.d_assets,
             static_folder=sconf.d_assets)
 app.config['SECRECT_KEY'] = 'BjörnKommer'
-socketio = SocketIO(app, async_mode=async_mode)
+socketio = SocketIO(app, async_mode=async_mode, pingTimeout=60)
 
 
 # DEFINE VIEWS
@@ -212,46 +212,45 @@ def precompute_features():
     e.cnn.testset.add_pre_suffix(sconf.images, '.' + sconf.set_ext)
     e.cnn.outputs_to_lmdb()
     e.cnn.testset.rm_pre_suffix(sconf.images, '.' + sconf.set_ext)
+    e.clear()
 
 
-def run_train(idx, rect):
-    pass
+def run_train():
+    e = Experiment(['--gpu', str(sconf.GPU), '--default', '--quiet'])
+    e.load_conf(sconf.f_expYAML)
+    e.conf['mean'] = sconf.mean
+    e.conf['negatives'] = sconf.negatives
+    e.conf['images'] = sconf.images
+    e.prepare()
+    e.train()
+    e.clear()
+    send_notification('Fine-tuning finished')
 
 
 def run_test():
-    e = Experiment(['--gpu', str(sconf.GPU), '--default', '--quiet', '--tofcn'])
+    e = Experiment(
+        ['--gpu', str(sconf.GPU), '--default', '--quiet', '--tofcn'])
     e.load_conf(sconf.f_expYAML[:-5] + '_FCN.yaml')
-    e.conf['lmdb'] = os.path.splitext(sconf.test)[0] + '_lmdb'
+    # e.conf['lmdb'] = os.path.splitext(sconf.test)[0] + '_lmdb'
+    e.conf['mean'] = sconf.test_mean
     e.conf['images'] = sconf.images
     e.conf['test_images'] = sconf.test_images
     e.conf['test'] = sconf.test
     e.prepare()
+    if sconf.poll_thread is None:
+        sconf.poll_thread = socketio.start_background_task(
+            target=find_poller)
     e.conv_test(shout=True, doEval=False)
+    e.clear()
+    send_notification('Test finished')
 
 
 def run_network(idx, rect):
     sconf.last_img = idx
     sconf.last_rect = rect
     write_seg_yaml(idx, rect)
-    e = Experiment(['--gpu', str(sconf.GPU), '--default', '--quiet'])
-    # e.load_conf(sconf.f_expYAML)
-    # e.conf['mean'] = sconf.mean
-    # e.conf['negatives'] = sconf.negatives
-    # e.conf['images'] = sconf.images
-    # e.prepare()
-    # e.train()
+    run_train()
     run_test()
-    # e.load_conf(sconf.f_expYAML[:-5] + '_FCN.yaml')
-    # e.conf['images'] = sconf.images
-    # e.conf['mean'] = sconf.test_mean
-    # e.conf['test_images'] = sconf.test_images
-    # e.conf['test'] = sconf.test
-    # e.prepare()
-    # if sconf.poll_thread is None:
-    #     sconf.poll_thread = socketio.start_background_task(
-    #         target=find_poller)
-    # e.conv_test(shout=True, doEval=False)
-    e.clear()
 
 
 def do_search(idx, rect):

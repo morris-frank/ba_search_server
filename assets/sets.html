@@ -4,10 +4,11 @@
     {% for c in configs %}
         <div class="column is-one-half">
             <div class="card-image">
-                <img class="search-result-image" src="#">
+                <!--<img class="search-result-image" src="#">-->
+                <h4 class="title is-4">{{c.name}}</h4>
             </div>
             <footer class="card-footer">
-                <p class="card-footer-item"><strong>{{c.name}}</strong></p>
+                <!-- <p class="card-footer-item"><strong>{{c.name}}</strong></p>-->
                 <p class="card-footer-item"><a class="button" href="/choose_set/{{ c.name }}">Change to</a></p>
                 {% if c.precomputed %}
                     <p class="card-footer-item"><a class="button is-danger" href="/precompute/{{ c.name }}">Re-Precompute</a></p>
