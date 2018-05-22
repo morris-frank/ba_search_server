@@ -1,6 +1,6 @@
 images: '/net/hciserver03/storage/mfrank/src/ba/data/datasets/voc2010/JPEGImages/'
+test_images: '/net/hciserver03/storage/mfrank/src/ba/data/datasets/voc2010/JPEGImages/'
 mean: '/net/hciserver03/storage/mfrank/src/ba/data/models/resnet/ResNet_mean.npy'
 negatives: '/net/hciserver03/storage/mfrank/src/ba/data/tmp/var_neg/'
-test_images: '/net/hciserver03/storage/mfrank/src/ba/data/tmp/mean_substracted_voc/'
 test_mean: False
 test: '/net/hciserver03/storage/mfrank/src/ba/data/tmp/pascpart/pascpart.txt'

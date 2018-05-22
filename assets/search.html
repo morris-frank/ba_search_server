@@ -12,7 +12,7 @@
             </div>
         </div>
     </div>
-    <progress class="progress is-warning" value="25" max="100"></progress>
+    <!-- <progress class="progress is-warning" value="25" max="100"></progress>-->
 
     <div id="search_results" class="columns is-multiline">
 
@@ -28,7 +28,6 @@
 {% endblock %}
 
 {% block tail %}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
     <script type="text/javascript" charset="utf-8">
     jQuery.fn.sortDivs = function sortDivs() {
         $("> div", this[0]).sort(dec_sort).appendTo(this[0]);
@@ -36,11 +35,6 @@
     }
 
     $(document).ready(function() {
-      var socket = io.connect('http://' + document.domain + ':' + location.port);
-      socket.on('connect', function() {
-          socket.emit('my event', {data: 'I\'m connected!'});
-      });
-
       var results = [];
 
       socket.on('new_find', function(msg) {
